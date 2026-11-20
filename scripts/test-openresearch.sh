@@ -26,6 +26,14 @@ bash "$entry" setup >/dev/null
 printf '%s\n' "$repo_root" telemetry off > "$test_dir/expected"
 cmp "$test_dir/call" "$test_dir/expected"
 
+# doctor finds the orx skill in the workspace trunk, and only reports it when absent.
+mkdir -p "$test_dir/trunk/.agents/skills/orx"
+touch "$test_dir/trunk/.agents/skills/orx/SKILL.md"
+WORKSPACE_ROOT="$test_dir/trunk" bash "$entry" doctor > "$test_dir/doctor-log"
+grep -qF "Skill: $test_dir/trunk/.agents/skills/orx/SKILL.md" "$test_dir/doctor-log"
+WORKSPACE_ROOT="$test_dir/absent" bash "$entry" doctor > "$test_dir/doctor-log"
+grep -qF 'isogeny-labs/workspace:.agents/skills/orx/SKILL.md' "$test_dir/doctor-log"
+
 sed 's/orx 0.2.27/orx 0.0.0/' "$OPENRESEARCH_BIN" > "$test_dir/old-orx"
 chmod +x "$test_dir/old-orx"
 if OPENRESEARCH_BIN="$test_dir/old-orx" bash "$entry" setup > "$test_dir/version-log" 2>&1; then

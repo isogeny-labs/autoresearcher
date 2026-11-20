@@ -7,17 +7,23 @@ readonly INSTALLER_SHA256='fbf1c9a92f525d2cb0bf902016d22fdc5dd9a275f781b554a32e3
 readonly INSTALLER_URL="https://github.com/alphaXiv/OpenResearch/releases/download/v${ORX_VERSION}/openresearch-cli-installer.sh"
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 prefix="${OPENRESEARCH_PREFIX:-${HOME}/.local}"
+# The orx skill lives in the lab's workspace trunk (isogeny-labs/workspace),
+# where this repository is checked out as repos/<name>.
+readonly SKILL_REL='.agents/skills/orx/SKILL.md'
+workspace_root="${WORKSPACE_ROOT:-$repo_root/../..}"
 
 usage() {
   cat <<'USAGE'
 Usage: bash scripts/openresearch.sh <setup|doctor|up|skill> [arguments...]
 
   setup   Install the pinned CLI if absent; disable anonymous telemetry.
-  doctor  Check the CLI and repository skill without network access.
+  doctor  Check the CLI and report where the orx skill is, without network access.
   up      Open the loopback dashboard; add this checkout as an existing project.
   skill   Print the bundled CLI guide (optional module name).
 
 Other commands are passed to orx from this repository's root.
+WORKSPACE_ROOT names the workspace trunk checkout that holds the orx skill
+(default: two directories above this repository, as for repos/<name>).
 OPENRESEARCH_PREFIX selects the installation prefix (default: ~/.local).
 OPENRESEARCH_BIN selects an existing executable explicitly.
 USAGE
@@ -32,6 +38,16 @@ resolve_orx() {
     orx_bin="$(command -v orx || true)"
   fi
   [[ -n "$orx_bin" && -x "$orx_bin" ]]
+}
+
+report_skill() {
+  if [[ -r "$workspace_root/$SKILL_REL" ]]; then
+    printf 'Skill: %s\n' "$(cd -- "$workspace_root" && pwd)/$SKILL_REL"
+  else
+    printf 'Skill: not in %s; it lives in the workspace trunk, isogeny-labs/workspace:%s\n' \
+      "$workspace_root" "$SKILL_REL"
+    printf '  (start the session from a workspace checkout or set WORKSPACE_ROOT to one)\n'
+  fi
 }
 
 require_orx() {
@@ -74,7 +90,7 @@ setup() {
     exit 1
   fi
   "$orx_bin" telemetry off
-  echo "OpenResearch $ORX_VERSION ready; repository skill: .agents/skills/orx/SKILL.md"
+  echo "OpenResearch $ORX_VERSION ready; skill: isogeny-labs/workspace:$SKILL_REL"
 }
 
 cd -- "$repo_root"
@@ -86,8 +102,7 @@ case "$command_name" in
   doctor)
     require_orx
     "$orx_bin" --version
-    test -r .agents/skills/orx/SKILL.md
-    test -r .claude/skills/orx/SKILL.md
+    report_skill
     "$orx_bin" telemetry status
     printf 'Repository: %s\nDashboard: http://127.0.0.1:4791\n' "$repo_root"
     ;;
